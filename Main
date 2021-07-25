@@ -1,0 +1,85 @@
+provider "aws"{
+  region                  = "ap-south-1"
+  profile                 = "default"
+}
+
+resource "aws_instance" "webos1"{
+  ami           = "ami-010aff33ed5991201"
+  instance_type = "t2.micro"
+  key_name = "aws_key_yashraj007"
+  vpc_security_group_ids = [ "sg-20e9365d" ]
+
+  tags = {
+    Name = "web server by terraform"
+  }
+
+  connection {
+    type     = "ssh"
+    user     = "ec2-user"
+    private_key = file("C:/Users/Yashraj/Downloads/aws_key_yashraj007.pem")
+    host     = aws_instance.webos1.public_ip
+  }
+  
+  provisioner "remote-exec" {
+    inline = [
+      "sudo yum install httpd -y",
+      "sudo yum install php -y",
+      "sudo systemctl start httpd"
+    ]
+  }
+}
+
+resource "aws_ebs_volume" "webos1" {
+availability_zone = aws_instance.webos1.availability_zone
+size              = 1
+
+tags = {
+  Name = "web_Server_HD"
+  }
+}
+
+resource "aws_volume_attachment" "webos1" {
+  device_name = "/dev/sdf"
+  volume_id   = aws_ebs_volume.webos1.id
+  instance_id = aws_instance.webos1.id
+}
+
+resource "null_resource" "hd_formate" {
+
+  connection {
+    type     = "ssh"
+    user     = "ec2-user"
+    private_key = file("C:/Users/Yashraj/Downloads/aws_key_yashraj007.pem")
+    host     = aws_instance.webos1.public_ip
+  }
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mkfs.ext4 /dev/xvdf",
+      "sudo mount /dev/xvdf /var/www/html"
+    ]
+  }
+}
+
+resource "null_resource" "clone_github" {
+
+  connection {
+    type     = "ssh"
+    user     = "ec2-user"
+    private_key = file("C:/Users/Yashraj/Downloads/aws_key_yashraj007.pem")
+    host     = aws_instance.webos1.public_ip
+  }
+  provisioner "remote-exec" {
+    inline = [
+      "sudo yum install git -y",
+      "sudo git clone https://github.com/vimallinuxworld13/gitphptest.git /var/www/html/web"     
+    ]
+  }
+}
+
+resource "null_resource" "output_in_chrome" {
+
+  provisioner "local-exec" {
+    command = "start chrome http://3.6.86.77/web/index.php"
+  }
+}
+
